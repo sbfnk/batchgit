@@ -90,7 +90,7 @@ checkbatchgit () {
         #checks that batchgitrc exists, if not then goes
         #to function to search for current repos
 	if [[ $clone == "false" ]]; then
-		#if [[ ! -f $log ]]; then
+		#if [[ ! -a $log ]]; then
 			findgitrepos
 		#fi
 	fi
@@ -101,7 +101,7 @@ checkbatchgit () {
                 findgitrepos
         fi
         #if has lines, set paths array to them
-        if [[ -f $log ]]; then
+        if [[ -a $log ]]; then
                 paths=( $(cat $log) )     
         fi
 }
@@ -122,7 +122,7 @@ findgitrepos () {
         #tells user how many repos they have
         echo -e "There are $numfind git repositories \n"
         #if file doesn't exist, then makes one
-        if [[ ! -f $log ]]; then
+        if [[ ! -a $log ]]; then
                 touch $log
                 echo -e "making a $log file \n"
         #if it does exist then it makes a backup
@@ -354,7 +354,7 @@ ${bold}Other features${normal}
 gitAdd () {
         if [[ ! -z $addDir ]]; then 
                 #checks rc exists, think this is / should be a function
-                if [[ ! -f $log ]]; then
+                if [[ ! -a $log ]]; then
                         touch $log
                         echo -e "making $log file \n"
                 fi
@@ -599,7 +599,7 @@ logLocation
 checkbatchgit
 
 #if log file not present then runs findgit
-if [[ ! -f $log ]]; then
+if [[ ! -a $log ]]; then
         findgitrepos
 fi
 
@@ -667,7 +667,7 @@ echo -e "\n${bold}BACKUP BATCHGIT\n===============${normal}\n"
                 mv ~/batchgit-takeaway/bootstrapdir ~/batchgit-takeaway/bootstrapdir.bak
         fi
         #check if a batchgitrepo exists, if not then tell them to run it. Or let the function run
-        if [[ ! -f $log ]]; then
+        if [[ ! -a $log ]]; then
                 echo "You don't have a $log file."
                 echo "This can be created by running batchgit -find"
                 echo "or the following"
@@ -753,7 +753,7 @@ if [[ $grm ]]; then
         #add individual dir/repo mode
         if [[ ! -z $rmDir ]]; then 
                 #checks rc exists, think this is / should be a function
-                if [[ ! -f $log ]]; then
+                if [[ ! -a $log ]]; then
                         echo "$log file does not exist \n"
                         findgitrepos
                 fi
@@ -808,7 +808,6 @@ if [[ $gstatus ]]; then
                 cd $dir
                 gitStatus 
         done
-##        clear
 fi
 
 #git pull
