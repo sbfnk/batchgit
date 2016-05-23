@@ -102,7 +102,7 @@ checkbatchgit () {
         fi
         #if has lines, set paths array to them
         if [[ -a $log ]]; then
-                paths=( $(cat $log) )     
+            paths=( $($sed -e '/^$/d' $log) )     
         fi
 }
 
@@ -784,10 +784,6 @@ if [[ $grm ]]; then
                 echo "you need to add the directory after the flag!"
         fi
 fi
-
-#deletes blank lines from the batchgitrc file
-#could potentially be moved into the loop above
-$sed -e '/^$/d' -i $log 
 
 #commit flag, complicated due to flag and commit message catching
 if [[ $gcommit ]]; then
