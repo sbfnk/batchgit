@@ -4,7 +4,10 @@
 bold=`tput bold`
 normal=`tput sgr0`
 log="$HOME/.batchgitrc"
-batchgitChanges="$HOME/.batchgitChanges"
+dir=$(mktemp -d)
+batchgitChanges=$dir/batchgitchanges
+batchgitPushMessage=$dir/batchgitpushmesssage
+batchgitPullMessage=$dir/batchgitpullmesssage
 totalNum=$(wc -l < $log)
 sed=gsed
 colourscheme=dark
@@ -21,67 +24,11 @@ bar() {
 
 #dynamic underlining of mode
 modeEcho () {
-        clear
         titleLen=${#MODE}
         titleSpaces=$(bar "=" $titleLen)
-        tput cup 0 0
         echo -e "\n${bold}$MODE\n$titleSpaces${normal}\n"
 }
 
-#sets details for batchgit action
-pwdEcho () {
-        REPO=${PWD##*/}
-        #returns the branch
-        BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        #prints the repository name and branch to stdout
-        tput cup 3 0
-        echo -e "${normal}Repository${bold} $REPO${normal}"
-        tput cup 4 0
-        echo -e "${normal}Branch${bold} $BRANCH${normal}"
-        tput cup 5 0 
-        echo -e "${normal}Mode${bold} $action${normal}"
-}
-
-#tidies pwdecho for another round
-cleanpwdEcho () {
-        cleanREPO=$(bar " " ${#REPO})
-        cleanBRANCH=$(bar " " ${#BRANCH})
-        cleanaction=$(bar " " ${#action})
-        tput cup 3 0
-        echo -e "${normal}Repository${bold} $cleanREPO${normal}"
-        tput cup 4 0
-        echo -e "${normal}Branch${bold} $cleanBRANCH${normal}"
-        tput cup 5 0 
-        echo -e "${normal}Mode${bold} $cleanaction${normal}"
-}
-
-#checks size of terminal and determines where to place bar
-termSize () {
-        terminalSize=$(stty size | $sed 's|.* ||g')
-        centre=$(echo $(stty size | $sed 's|.* ||g') / 2 | bc)
-        offsetby=$(echo $totalNum / 2 | bc)
-        offset=$(($centre - $offsetby)) 
-        if [[ "$lastSize" != "$terminalSize" ]]; then
-                tput clear
-        fi
-        lastSize=$terminalSize
-}
-
-#progress bar for action
-progressLoop () {
-        termSize
-        modeEcho
-        spaces=$(($totalNum-$progNum))
-        bargraphDone=$(bar "=" $progNum)
-        if [[ $progNum -lt $totalNum ]]; then
-                bargraphSpaces=$(bar " " $spaces)
-                tput cup 9 $offset
-                echo "[$bargraphDone$bargraphSpaces] $progNum/$totalNum"
-        else
-                tput cup 9 $offset
-                echo "[$bargraphDone] Done!"
-        fi
-}
 
 #function that assigns n number of command line arguements
 assignDynamicDir () {
@@ -106,7 +53,7 @@ wipeRepos () {
                                 cd ..
                                 #could have sudo here to save y for write protected file
                                 #but don't want to force sudo
-                                rm -rf $REPO
+                                /bin/rm -rf $REPO
                                 echo "Wiped";;
                         [Nn][Oo]|[Nn]) echo "Not wiped" ;;
                         [Qq][Uu][Ii][Tt]|[Qq]|[Ee][Xx][Ii][Tt]|[Qq]|[Ee]) echo "quiting" && exit ;;
@@ -262,8 +209,7 @@ confirmClone () {
 #HERE I need to tidy up and work out which are depreciated
 gitStatus () {
         action="status"
-        pwdEcho
-        tput cup 15 0
+        echo ${PWD##*/}
         commitStatus=$(git status | $sed -n -e '/commit/,$p' | grep -w "commit" | $sed -e 's/.* is //g' -e 's/ of.*//g')
         commitAhead=$(git status | grep "ahead" | $sed -e 's/.*by //g' -e 's/ commit.//g' -e 's/\.//g')
         commitBehind=$(git status | grep "behind" | $sed -e 's/.*by //g' -e 's/ commit.//g')
@@ -284,7 +230,7 @@ gitStatus () {
                 BRANCH=$(git rev-parse --abbrev-ref HEAD)
                 #prints the repository name and branch to stdout
                 # echo -e "${bold}Repository $REPO ${normal} $BRANCH"
-                echo -e "\nRepository $REPO \nBranch $BRANCH" >> $batchgitChanges
+                echo -e "$REPO" >> $batchgitChanges
                 if [[ ! -z $modified ]]; then
                         echo "To be commited:$modified" >> $batchgitChanges
                 fi
@@ -323,44 +269,38 @@ gitStatus () {
                 elif [[ ! -z $commitAhead ]] && [[ ! -z $commitBehind ]]; then
                         echo "You are ahead and behind" >> $batchgitChanges
                 fi
-                echo ""
         fi
-        cleanpwdEcho
 }
 
 #function that pulls repos
 gitPull () {
-        pwdEcho
-        tput cup 15 0
-        git pull > .batchgitpullmessage
-        pulluptodate=$(grep "up-to-date" .batchgitpullmessage); if [[ -z $pulluptodate ]]; then
+        REPO=${PWD##*/}
+        if [[ $action == "pull" ]]; then
+          echo $REPO
+        fi
+        git pull > $batchgitPullMessage
+        pulluptodate=$(grep "up-to-date" $batchgitPullMessage);
+        if [[ -z $pulluptodate ]]; then
                 # echo -e "\t\t\t$REPO\t$action" >> $batchgitChanges
-                echo -e "Repository $REPO\nBranch $BRANCH\nAction $action\n" >> $batchgitChanges
-                cat $batchgitChanges .batchgitpullmessage >> $batchgitChanges
+                echo -e "$REPO $action\n" >> $batchgitChanges
+                cat $batchgitPullMessage >> $batchgitChanges
                 echo -e "\n" >> $batchgitChanges
         fi
-        cleanpwdEcho
-        tput cup 3 0
-        echo -e "                                                                  "
-        rm .batchgitpullmessage
-        tput clear
 }
 
 #function that pushes repos
 gitPush () {
-        pwdEcho
-        tput cup 15 0
-        git push --porcelain > .batchgitpushmessage 
-        pushuptodate=$(grep "up to date" .batchgitpushmessage)
+        REPO=${PWD##*/}
+        echo $REPO
+        git push --porcelain > $batchgitPushMessage 
+        pushuptodate=$(grep "up to date" $batchgitPushMessage)
         if [[ $gpullpush ]]; then
                 gitPull
         fi
         if [[ -z $pushuptodate ]]; then
-                echo -e "Repository $REPO\nBranch $BRANCH\nAction $action\n" >> $batchgitChanges
-                cat $batchgitChanges .batchgitpushmessage >> $batchgitChanges
+                echo -e "$REPO $action\n" >> $batchgitChanges
+                cat $batchgitPushMessage >> $batchgitChanges
         fi
-        cleanpwdEcho
-        rm .batchgitpushmessage
 }
 
 #function that checks for different types of commits
@@ -554,7 +494,6 @@ logLocation () {
         else
                 log="$HOME/.batchgitrc"
         fi
-        batchgitChanges="$HOME/.batchgitChanges"
         totalNum=$(wc -l < $log)
 }
 
@@ -625,10 +564,6 @@ do
 
         esac
 done
-
-if [[ -f $batchgitChanges ]]; then
-        rm $batchgitChanges
-fi
 
 #if clone flag is u$sed
 if [[ $clone ]]; then
@@ -871,10 +806,9 @@ if [[ $gstatus ]]; then
                 j=$(($progNum+1))
                 progNum=$j
                 cd $dir
-                progressLoop $progNum $totalNum
                 gitStatus 
         done
-        clear
+##        clear
 fi
 
 #git pull
@@ -888,32 +822,22 @@ if [[ $gpull ]] || [[ $gpullpush ]]; then
                 progNum=$j
                 cd $dir
                 action="pull"
-                pwdEcho
-                progressLoop $progNum $totalNum
                 gitPull
-                tput cup 8 0
-                cleanpwdEcho
         done
-        # tput clear
-        clear
 fi
 
 #git push
 if [[ $gpush ]] || [[ $gpullpush ]]; then
+        MODE="GIT PUSH"
+        modeEcho
         progNum=0
         for dir in "${paths[@]}"; do
                 j=$(($progNum+1))
                 progNum=$j
                 cd $dir
                 action="push"
-                MODE="GIT PUSH"
-                modeEcho
-                pwdEcho
-                progressLoop $progNum $totalNum
                 gitPush 
-                cleanpwdEcho
         done
-        clear
 fi
 
 #catch wipe flag
@@ -974,5 +898,4 @@ if [[ -f $batchgitChanges ]]; then
                 cat $batchgitChanges
         fi
         echo ""
-        rm $batchgitChanges
 fi
